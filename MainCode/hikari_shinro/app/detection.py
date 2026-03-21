@@ -74,7 +74,7 @@ class YOLOWorldDetector:
         self,
         frame: np.ndarray,
         labels: Optional[List[str]] = None,
-        conf_threshold: float = 0.25,
+        conf_threshold: float = 0.15,
         imgsz: int = 640,
     ) -> List[Dict]:
         """

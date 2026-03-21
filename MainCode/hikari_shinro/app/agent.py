@@ -61,7 +61,7 @@ class HikariAgent:
 
     MAX_HISTORY = 6          # keep last N turns to avoid context overflow
     RETRY_LIMIT = 2
-    REQUEST_INTERVAL = 4.0   # min seconds between LLM calls
+    REQUEST_INTERVAL = 6.0   # min seconds between LLM calls
 
     def __init__(self):
         self._client       = None
@@ -129,7 +129,7 @@ class HikariAgent:
                 response = self._client.chat.completions.create(
                     model=self._model,
                     messages=messages,
-                    max_tokens=0,
+                    max_tokens=200,
                     temperature=0.3,
                     response_format={"type": "json_object"},
                 )

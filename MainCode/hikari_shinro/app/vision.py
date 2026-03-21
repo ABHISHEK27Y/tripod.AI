@@ -39,7 +39,7 @@ class CameraCapture:
 
     def start(self) -> bool:
         """Open camera and start capture thread. Returns True on success."""
-        self._cap = cv2.VideoCapture(self.device_id)
+        self._cap = cv2.VideoCapture(self.device_id, cv2.CAP_DSHOW)
         if not self._cap.isOpened():
             logger.error(f"Cannot open camera device {self.device_id}")
             return False
