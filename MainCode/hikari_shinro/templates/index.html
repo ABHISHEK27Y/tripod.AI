@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>視覚 — Hikari Shinro AI</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<style>
+/* ── RESET & BASE ─────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:       #0b0d14;
+  --surface:  #111827;
+  --border:   rgba(0, 210, 220, 0.25);
+  --cyan:     #00d4dc;
+  --red:      #cc1a1a;
+  --amber:    #f0a020;
+  --green:    #2ecc71;
+  --purple:   #9b59b6;
+  --white:    #e8e6de;
+  --muted:    #6b7280;
+  --font:     'Courier New', Consolas, monospace;
+}
+html, body { height: 100%; background: var(--bg); color: var(--white); font-family: var(--font); overflow: hidden; }
+
+/* ── LAYOUT ──────────────────────────────────────── */
+.hud-root {
+  display: grid;
+  grid-template-rows: 36px 1fr 36px;
+  grid-template-columns: 1fr 300px;
+  height: 100vh;
+  gap: 0;
+}
+
+/* ── TOP BAR ─────────────────────────────────────── */
+.top-bar {
+  grid-column: 1 / -1;
+  background: #080a10;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 16px; gap: 16px;
+}
+.top-bar .logo {
+  font-size: 13px; font-weight: bold; letter-spacing: 3px;
+  color: var(--cyan); text-transform: uppercase;
+}
+.top-bar .status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--muted); transition: background 0.3s;
+  flex-shrink: 0;
+}
+.top-bar .status-dot.live { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.top-bar .status-dot.error { background: var(--red); }
+.top-bar .status-text { font-size: 11px; color: var(--muted); }
+.top-bar .spacer { flex: 1; }
+.top-bar .frame-counter { font-size: 10px; color: var(--muted); letter-spacing: 1px; }
+
+/* ── MAIN VIDEO PANEL ────────────────────────────── */
+.video-panel {
+  position: relative;
+  background: #060810;
+  overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+#camera-feed {
+  width: 100%; height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.no-feed-msg {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  color: var(--muted); font-size: 13px; gap: 8px;
+}
+.no-feed-msg .kanji { font-size: 48px; opacity: 0.15; }
+
+/* Corner brackets (anime HUD) */
+.bracket { position: absolute; width: 20px; height: 20px; pointer-events: none; }
+.bracket.tl { top: 8px; left: 8px; border-top: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
+.bracket.tr { top: 8px; right: 8px; border-top: 2px solid var(--cyan); border-right: 2px solid var(--cyan); }
+.bracket.bl { bottom: 8px; left: 8px; border-bottom: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
+.bracket.br { bottom: 8px; right: 8px; border-bottom: 2px solid var(--cyan); border-right: 2px solid var(--cyan); }
+
+/* Agent speech bubble overlay */
+#agent-bubble {
+  position: absolute; bottom: 12px; left: 12px; right: 12px;
+  background: rgba(8, 10, 16, 0.88);
+  border: 1px solid var(--cyan);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 12px; color: var(--white); line-height: 1.5;
+  display: none;
+}
+#agent-bubble.visible { display: block; }
+#agent-bubble .label { font-size: 9px; color: var(--cyan); letter-spacing: 2px; margin-bottom: 4px; }
+
+/* ── SIDEBAR ──────────────────────────────────────── */
+.sidebar {
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-section {
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding: 12px;
+}
+.sidebar-section .sec-title {
+  font-size: 9px; letter-spacing: 3px; color: var(--cyan);
+  text-transform: uppercase; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 6px;
+}
+.sidebar-section .sec-title::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
+/* Goal input */
+.goal-input-wrap { display: flex; gap: 6px; }
+#goal-input {
+  flex: 1; background: rgba(0,210,220,0.05);
+  border: 1px solid var(--border); border-radius: 3px;
+  padding: 6px 10px; font-size: 11px; color: var(--white);
+  font-family: var(--font); outline: none;
+}
+#goal-input:focus { border-color: var(--cyan); }
+#goal-input::placeholder { color: var(--muted); }
+.btn {
+  padding: 6px 12px; border-radius: 3px; border: 1px solid var(--border);
+  background: transparent; color: var(--white); font-size: 11px;
+  cursor: pointer; font-family: var(--font); transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--cyan); color: #000; border-color: var(--cyan); }
+.btn.red { border-color: var(--red); color: var(--red); }
+.btn.red:hover { background: var(--red); color: #fff; }
+.btn.green { border-color: var(--green); color: var(--green); }
+.btn.green:hover { background: var(--green); color: #000; }
+
+/* Current goal display */
+#current-goal {
+  font-size: 11px; color: var(--amber);
+  padding: 4px 0; min-height: 18px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Action display */
+.action-badge {
+  display: inline-block; padding: 3px 10px;
+  border-radius: 20px; font-size: 10px; font-weight: bold;
+  letter-spacing: 1px; text-transform: uppercase;
+  border: 1px solid var(--muted); color: var(--muted);
+  transition: all 0.2s;
+}
+.action-badge.move_forward  { border-color: var(--green);  color: var(--green);  }
+.action-badge.stop          { border-color: var(--red);    color: var(--red);    box-shadow: 0 0 8px var(--red); }
+.action-badge.turn_left, .action-badge.turn_right { border-color: var(--amber); color: var(--amber); }
+
+/* Detections list */
+#detections-list {
+  max-height: 160px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 4px;
+}
+#detections-list::-webkit-scrollbar { width: 3px; }
+#detections-list::-webkit-scrollbar-thumb { background: var(--border); }
+.det-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 8px; border-radius: 3px;
+  border: 1px solid rgba(255,255,255,0.04);
+  background: rgba(255,255,255,0.02);
+  font-size: 10px;
+}
+.det-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.det-label { flex: 1; color: var(--white); }
+.det-dist { color: var(--amber); font-size: 10px; }
+.det-conf { color: var(--muted); font-size: 9px; }
+
+/* Controls */
+.controls-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* System log */
+#sys-log {
+  flex: 1; overflow-y: auto; padding: 8px;
+  font-size: 10px; line-height: 1.8; color: var(--muted);
+}
+#sys-log::-webkit-scrollbar { width: 2px; }
+#sys-log::-webkit-scrollbar-thumb { background: var(--border); }
+.log-entry { padding: 1px 0; }
+.log-entry.info  { color: var(--muted); }
+.log-entry.speak { color: var(--cyan); }
+.log-entry.warn  { color: var(--amber); }
+.log-entry.ok    { color: var(--green); }
+
+/* Labels display */
+#labels-display {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  max-height: 60px; overflow: hidden;
+}
+.label-chip {
+  font-size: 9px; padding: 2px 7px; border-radius: 20px;
+  border: 1px solid var(--border); color: var(--muted);
+  background: rgba(0,210,220,0.04);
+}
+.label-chip.target { border-color: var(--amber); color: var(--amber); }
+
+/* ── BOTTOM BAR ───────────────────────────────────── */
+.bottom-bar {
+  grid-column: 1 / -1;
+  background: #080a10;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 16px; gap: 20px;
+  font-size: 10px; color: var(--muted);
+}
+#scene-text {
+  flex: 1; overflow: hidden;
+  white-space: nowrap; text-overflow: ellipsis;
+  color: rgba(255,255,255,0.5);
+}
+.kanji-dec { color: rgba(0,210,220,0.3); letter-spacing: 2px; }
+
+/* ── GOAL REACHED OVERLAY ─────────────────────────── */
+#goal-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 100;
+  align-items: center; justify-content: center;
+  flex-direction: column; gap: 12px;
+}
+#goal-overlay.visible { display: flex; }
+#goal-overlay h2 { font-size: 32px; color: var(--green); letter-spacing: 3px; }
+#goal-overlay p  { font-size: 14px; color: var(--white); }
+#goal-overlay .kanji { font-size: 60px; opacity: 0.2; position: absolute; top: 20px; }
+
+/* ── ANIMATIONS ───────────────────────────────────── */
+@keyframes pulse-cyan {
+  0%,100% { box-shadow: 0 0 4px var(--cyan); }
+  50%      { box-shadow: 0 0 12px var(--cyan), 0 0 20px var(--cyan); }
+}
+.live-indicator { animation: pulse-cyan 2s infinite; }
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.det-item { animation: fade-in 0.2s ease-out; }
+</style>
+</head>
+<body>
+<div class="hud-root">
+
+  <!-- ── TOP BAR ─────────────────────────────────── -->
+  <div class="top-bar">
+    <div class="logo">視覚 Hikari Shinro AI</div>
+    <div class="status-dot" id="conn-dot"></div>
+    <span class="status-text" id="conn-text">Connecting...</span>
+    <div class="spacer"></div>
+    <span class="kanji-dec">光の進路</span>
+    <span class="frame-counter" id="frame-counter">FRAME: 0</span>
+  </div>
+
+  <!-- ── MAIN VIDEO ───────────────────────────────── -->
+  <div class="video-panel">
+    <div class="no-feed-msg" id="no-feed">
+      <div class="kanji">視覚</div>
+      <span>Waiting for camera feed...</span>
+      <span style="font-size:11px; color: #444; margin-top: 8px;">
+        Start the system to begin navigation
+      </span>
+    </div>
+    <img id="camera-feed" alt="Live feed" style="display:none;" />
+
+    <!-- HUD brackets -->
+    <div class="bracket tl"></div>
+    <div class="bracket tr"></div>
+    <div class="bracket bl"></div>
+    <div class="bracket br"></div>
+
+    <!-- Agent speech bubble -->
+    <div id="agent-bubble">
+      <div class="label">AGENT GUIDANCE</div>
+      <div id="bubble-text"></div>
+    </div>
+  </div>
+
+  <!-- ── SIDEBAR ──────────────────────────────────── -->
+  <div class="sidebar">
+
+    <!-- Goal section -->
+    <div class="sidebar-section">
+      <div class="sec-title">Navigation Goal</div>
+      <div class="goal-input-wrap">
+        <input type="text" id="goal-input" placeholder='e.g. "Help me reach the door"' />
+        <button class="btn green" onclick="setGoal()">SET</button>
+      </div>
+      <div id="current-goal" style="margin-top: 6px;">No goal set</div>
+    </div>
+
+    <!-- Controls -->
+    <div class="sidebar-section">
+      <div class="sec-title">Controls</div>
+      <div class="controls-row">
+        <button class="btn green" id="btn-start" onclick="startSystem()">▶ START</button>
+        <button class="btn red"   id="btn-stop"  onclick="stopSystem()">■ STOP</button>
+      </div>
+      <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px;">
+        <span style="font-size:10px; color: var(--muted);">Action:</span>
+        <span class="action-badge" id="action-badge">IDLE</span>
+      </div>
+    </div>
+
+    <!-- Detections -->
+    <div class="sidebar-section">
+      <div class="sec-title">Live Detections</div>
+      <div id="detections-list">
+        <div class="log-entry" style="font-size:10px; text-align:center; padding: 8px;">
+          No detections yet
+        </div>
+      </div>
+    </div>
+
+    <!-- Detect labels -->
+    <div class="sidebar-section">
+      <div class="sec-title">Active Labels</div>
+      <div id="labels-display"></div>
+    </div>
+
+    <!-- System log -->
+    <div class="sidebar-section" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+      <div class="sec-title">System Log</div>
+      <div id="sys-log"></div>
+    </div>
+
+  </div>
+
+  <!-- ── BOTTOM BAR ───────────────────────────────── -->
+  <div class="bottom-bar">
+    <span class="kanji-dec">光</span>
+    <span id="scene-text">Waiting for scene data...</span>
+    <span id="fps-display" style="color: var(--cyan); flex-shrink:0;"></span>
+  </div>
+
+</div>
+
+<!-- Goal Reached Overlay -->
+<div id="goal-overlay">
+  <div class="kanji">達</div>
+  <h2>GOAL REACHED</h2>
+  <p id="goal-overlay-text">You have arrived at your destination.</p>
+  <button class="btn green" onclick="closeGoalOverlay()" style="margin-top: 16px;">
+    Set New Goal
+  </button>
+</div>
+
+<script>
+// ── Socket.IO ──────────────────────────────────────
+const socket = io({ transports: ["websocket", "polling"] });
+
+let frameCount   = 0;
+let lastFrameTs  = Date.now();
+let fpsBuffer    = [];
+let speechTimer  = null;
+
+// ── Connection ─────────────────────────────────────
+socket.on("connect", () => {
+  setConnected(true);
+  addLog("Connected to Hikari Shinro AI server", "ok");
+  fetchStatus();
+});
+
+socket.on("disconnect", () => {
+  setConnected(false);
+  addLog("Disconnected from server", "warn");
+});
+
+function setConnected(on) {
+  const dot  = document.getElementById("conn-dot");
+  const text = document.getElementById("conn-text");
+  dot.className  = "status-dot" + (on ? " live" : " error");
+  text.textContent = on ? "LIVE" : "OFFLINE";
+}
+
+// ── Frame stream ────────────────────────────────────
+socket.on("frame", (data) => {
+  // Camera image
+  const img    = document.getElementById("camera-feed");
+  const noFeed = document.getElementById("no-feed");
+  if (data.image) {
+    img.src = "data:image/jpeg;base64," + data.image;
+    img.style.display = "block";
+    noFeed.style.display = "none";
+  }
+
+  // FPS calculation
+  const now  = Date.now();
+  const dt   = now - lastFrameTs;
+  lastFrameTs = now;
+  fpsBuffer.push(1000 / dt);
+  if (fpsBuffer.length > 10) fpsBuffer.shift();
+  const fps = (fpsBuffer.reduce((a,b)=>a+b,0)/fpsBuffer.length).toFixed(1);
+  document.getElementById("fps-display").textContent = `${fps} FPS`;
+
+  // Frame counter
+  frameCount++;
+  document.getElementById("frame-counter").textContent =
+    "FRAME: " + (data.frame_count || frameCount);
+
+  // Scene description
+  if (data.scene) {
+    document.getElementById("scene-text").textContent = data.scene;
+  }
+
+  // Detections list
+  renderDetections(data.detections || []);
+
+  // Active labels
+  if (data.detections) {
+    const labels = [...new Set((data.detections || []).map(d => d.label))];
+    renderLabels(labels, data.target || "");
+  }
+
+  // Action badge
+  if (data.action) {
+    const badge = document.getElementById("action-badge");
+    badge.textContent = data.action.replace("_", " ").toUpperCase();
+    badge.className = "action-badge " + data.action;
+  }
+});
+
+// ── Agent speech ────────────────────────────────────
+socket.on("agent_speak", (data) => {
+  showSpeechBubble(data.text);
+  addLog("AGENT: " + data.text, "speak");
+
+  if (data.action) {
+    const badge = document.getElementById("action-badge");
+    badge.textContent = data.action.replace("_", " ").toUpperCase();
+    badge.className = "action-badge " + data.action;
+  }
+});
+
+socket.on("goal_updated", (data) => {
+  document.getElementById("current-goal").textContent = "→ " + data.goal;
+  addLog("Goal updated: " + data.goal, "ok");
+});
+
+socket.on("goal_reached", (data) => {
+  const overlay = document.getElementById("goal-overlay");
+  document.getElementById("goal-overlay-text").textContent =
+    `You have arrived at: ${data.goal}`;
+  overlay.classList.add("visible");
+  addLog("GOAL REACHED: " + data.goal, "ok");
+});
+
+socket.on("connected", (data) => {
+  if (data.goal) {
+    document.getElementById("current-goal").textContent = "→ " + data.goal;
+  }
+});
+
+// ── UI FUNCTIONS ────────────────────────────────────
+function setGoal() {
+  const input = document.getElementById("goal-input");
+  const goal  = input.value.trim();
+  if (!goal) return;
+
+  fetch("/api/goal", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ goal }),
+  }).then(r => r.json()).then(d => {
+    if (d.ok) {
+      document.getElementById("current-goal").textContent = "→ " + goal;
+      addLog("Goal set: " + goal, "ok");
+      input.value = "";
+    }
+  }).catch(e => addLog("Error setting goal: " + e, "warn"));
+}
+
+function startSystem() {
+  fetch("/api/start", { method: "POST" })
+    .then(r => r.json())
+    .then(d => addLog(d.msg, d.ok ? "ok" : "warn"));
+}
+
+function stopSystem() {
+  fetch("/api/stop", { method: "POST" })
+    .then(r => r.json())
+    .then(d => {
+      addLog(d.msg, "warn");
+      document.getElementById("action-badge").textContent = "STOPPED";
+      document.getElementById("action-badge").className = "action-badge";
+    });
+}
+
+function fetchStatus() {
+  fetch("/api/status").then(r => r.json()).then(d => {
+    if (d.goal) document.getElementById("current-goal").textContent = "→ " + d.goal;
+    if (d.last_action) {
+      const badge = document.getElementById("action-badge");
+      badge.textContent = d.last_action.replace("_", " ").toUpperCase();
+      badge.className = "action-badge " + d.last_action;
+    }
+  }).catch(() => {});
+}
+
+function closeGoalOverlay() {
+  document.getElementById("goal-overlay").classList.remove("visible");
+  document.getElementById("goal-input").focus();
+}
+
+function showSpeechBubble(text) {
+  const bubble = document.getElementById("agent-bubble");
+  document.getElementById("bubble-text").textContent = text;
+  bubble.classList.add("visible");
+  if (speechTimer) clearTimeout(speechTimer);
+  speechTimer = setTimeout(() => bubble.classList.remove("visible"), 6000);
+}
+
+// ── Render detections list ──────────────────────────
+const DET_COLORS = ["#00d4dc","#f0a020","#2ecc71","#9b59b6","#e74c3c","#3498db"];
+let colorMap = {};
+let colorIdx = 0;
+function getColor(label) {
+  if (!colorMap[label]) { colorMap[label] = DET_COLORS[colorIdx++ % DET_COLORS.length]; }
+  return colorMap[label];
+}
+
+function renderDetections(detections) {
+  const list = document.getElementById("detections-list");
+  if (!detections.length) {
+    list.innerHTML = '<div style="font-size:10px;text-align:center;color:var(--muted);padding:8px;">No objects detected</div>';
+    return;
+  }
+  list.innerHTML = detections.map(d => {
+    const color = getColor(d.label);
+    const dist  = d.distance_text || (d.distance_m ? d.distance_m + "m" : "");
+    const conf  = d.conf ? (d.conf * 100).toFixed(0) + "%" : "";
+    return `<div class="det-item">
+      <div class="det-dot" style="background:${color}; box-shadow: 0 0 4px ${color}"></div>
+      <span class="det-label">${d.label}</span>
+      <span class="det-dist">${dist}</span>
+      <span class="det-conf">${conf}</span>
+    </div>`;
+  }).join("");
+}
+
+function renderLabels(labels, target) {
+  const wrap = document.getElementById("labels-display");
+  wrap.innerHTML = labels.map(l =>
+    `<span class="label-chip ${l === target ? 'target' : ''}">${l}</span>`
+  ).join("");
+}
+
+// ── Log ─────────────────────────────────────────────
+function addLog(msg, type = "info") {
+  const log = document.getElementById("sys-log");
+  const now = new Date().toLocaleTimeString("en-US", { hour12: false });
+  const div = document.createElement("div");
+  div.className = `log-entry ${type}`;
+  div.textContent = `[${now}] ${msg}`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  // Keep last 80 entries
+  while (log.children.length > 80) log.removeChild(log.firstChild);
+}
+
+// ── Enter key for goal input ─────────────────────────
+document.getElementById("goal-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") setGoal();
+});
+
+// ── Initial log ──────────────────────────────────────
+addLog("Hikari Shinro AI HUD initialised", "ok");
+addLog("光の進路 — Path of Light", "info");
+addLog("Set a navigation goal and press START", "info");
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+flask==3.0.3
+flask-socketio==5.3.6
+opencv-python==4.9.0.80
+numpy==1.26.4
+scipy==1.13.0
+timm==0.9.16
+openai-whisper==20231117
+pyttsx3==2.90
+groq==0.8.0
+python-dotenv==1.0.1
+pillow==10.3.0
+ultralytics==8.2.0
+requests==2.31.0
+
+# NOTE: Install PyTorch separately — see SETUP_WINDOWS.md
+# NOTE: Install PyAudio separately — see SETUP_WINDOWS.md
+# NOTE: eventlet NOT needed — threading mode used instead
