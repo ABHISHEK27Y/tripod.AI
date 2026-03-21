@@ -3,15 +3,16 @@ import time
 
 from perception.camera import Camera
 from perception.detector import Detector
+from perception.depth import DepthEstimator
+from perception.spatial import SpatialEstimator
+from perception.tracker import IOUTracker
 
 
-def draw_detections(frame, detections):
-    for det in detections:
-        x1, y1, x2, y2 = det["bbox"]
-        label = det["label"]
-        conf = det["confidence"]
+def draw(frame, tracks, spatial_objects):
+    for track, obj in zip(tracks, spatial_objects):
+        x1, y1, x2, y2 = track.bbox
 
-        text = f"{label} {conf:.2f}"
+        text = f"ID {track.id} {obj['label']} {obj['range']} {obj['direction']}"
 
         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
         cv2.putText(
@@ -26,52 +27,62 @@ def draw_detections(frame, detections):
 
 
 def main():
-    camera = Camera()
-    detector = Detector()
+    cam = Camera()
+    det = Detector()
+    depth = DepthEstimator()
+    spatial = SpatialEstimator()
+    tracker = IOUTracker()
 
-    camera.open()
+    cam.open()
 
-    prev_time = time.time()
+    prev = time.time()
 
     try:
         while True:
-            frame = camera.read()
-
+            frame = cam.read()
             if frame is None:
-                print("⚠️ Failed to read frame")
                 break
 
-            detections = detector.detect(frame)
+            detections = det.detect(frame)
+            tracks = tracker.update(detections)
 
-            # print detections to console
-            for d in detections:
-                print(f"{d['label']} ({d['confidence']:.2f})")
+            # build fake detection list from tracks for spatial
+            tracked_dets = [
+                {"bbox": t.bbox, "label": t.label, "confidence": 1.0}
+                for t in tracks
+            ]
 
-            draw_detections(frame, detections)
+            depth_map = depth.estimate(frame)
+            spatial_objects = spatial.estimate(tracked_dets, depth_map)
 
-            # FPS calculation
-            current_time = time.time()
-            fps = 1 / (current_time - prev_time)
-            prev_time = current_time
+            for t, obj in zip(tracks, spatial_objects):
+                print(
+                    f"ID {t.id} → {obj['label']} → {obj['range']} → {obj['direction']}"
+                )
+
+            draw(frame, tracks, spatial_objects)
+
+            now = time.time()
+            fps = 1 / (now - prev)
+            prev = now
 
             cv2.putText(
                 frame,
-                f"FPS: {fps:.2f}",
+                f"FPS {fps:.2f}",
                 (10, 30),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 1,
                 (0, 0, 255),
-                2
+                2,
             )
 
-            cv2.imshow("Tripod Vision", frame)
+            cv2.imshow("Tracking Vision", frame)
 
-            # press q to exit
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
 
     finally:
-        camera.release()
+        cam.release()
 
 
 if __name__ == "__main__":
