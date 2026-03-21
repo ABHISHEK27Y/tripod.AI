@@ -275,7 +275,7 @@ All code was written manually by team members. AI tools (GitHub Copilot / Claude
 - Code completion suggestions (accepted/modified by team members)
 - Documentation drafting (reviewed and edited by team)
 
-### What Makes VisionGuide Unique
+### What Makes Hikari-Shinro-AI Unique
 1. **Zero-shot object detection** — YOLO-World detects any object the user asks about without any fine-tuning or retraining, directly satisfying the PS1 requirement
 2. **Quantitative Navigation Engine** — Explicit Kalman filter tracking + A\* path planning makes this genuinely quant-heavy, not just an AI wrapper
 3. **End-to-end agentic loop** — The system continuously replans without user re-prompting, fulfilling the "agentic" requirement of PS1
@@ -302,7 +302,7 @@ All code was written manually by team members. AI tools (GitHub Copilot / Claude
 > without disclosure may lead to immediate disqualification.
 > All team members have reviewed and agree to this declaration.
 
-**Team Representative Name**: _(fill name)_
+**Team Representative Name**:Abhishek Yadav
 
 **Date**: 21–22 March 2026
 
