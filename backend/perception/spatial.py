@@ -54,6 +54,8 @@ class SpatialEstimator:
                 direction = "right"
 
             spatial_objects.append({
+                "id": det["id"],
+                "bbox": det["bbox"],
                 "label": det["label"],
                 "confidence": det["confidence"],
                 "range": distance_range,
