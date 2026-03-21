@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VisionGuide — Final Tech Stack</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --color-bg: #0f0f13;
+    --color-surface: #1a1a24;
+    --color-border: rgba(255,255,255,0.1);
+    --color-border-em: rgba(255,255,255,0.2);
+    --color-text: #e8e6de;
+    --color-muted: #9c9a92;
+    --color-hint: #5c5a54;
+    --color-blue: #4a9eff;
+    --color-blue-bg: rgba(74,158,255,0.1);
+    --color-amber: #f0a020;
+    --color-amber-bg: rgba(240,160,32,0.1);
+    --color-green: #4cba6a;
+    --color-green-bg: rgba(76,186,106,0.1);
+    --color-cyan: #00d4ff;
+    --color-cyan-bg: rgba(0,212,255,0.08);
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 2rem;
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  .header { margin-bottom: 2rem; }
+  .header h1 {
+    font-size: 22px; font-weight: 600; letter-spacing: -0.3px;
+    background: linear-gradient(90deg, #00d4ff, #4a9eff);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 4px;
+  }
+  .header p { font-size: 13px; color: var(--color-muted); }
+  .header .badges { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 500; }
+  .badge-cyan { background: var(--color-cyan-bg); color: var(--color-cyan); border: 0.5px solid rgba(0,212,255,0.3); }
+  .badge-green { background: var(--color-green-bg); color: var(--color-green); border: 0.5px solid rgba(76,186,106,0.3); }
+  .badge-amber { background: var(--color-amber-bg); color: var(--color-amber); border: 0.5px solid rgba(240,160,32,0.3); }
+
+  /* TABS */
+  .tabs { display: flex; gap: 4px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+  .tab {
+    font-size: 13px; padding: 6px 16px;
+    border-radius: var(--radius-sm);
+    border: 0.5px solid var(--color-border);
+    background: transparent; color: var(--color-muted);
+    cursor: pointer; transition: all .15s;
+  }
+  .tab:hover { border-color: var(--color-border-em); color: var(--color-text); }
+  .tab.active { background: var(--color-cyan); color: #000; border-color: var(--color-cyan); font-weight: 500; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* LAYERS */
+  .layers { display: flex; flex-direction: column; gap: 8px; }
+  .layer { border-radius: var(--radius); border: 0.5px solid var(--color-border); overflow: hidden; transition: border-color .2s; }
+  .layer:hover { border-color: var(--color-border-em); }
+  .layer.highlight { border-color: rgba(240,160,32,0.4); }
+  .layer-header { padding: 12px 16px; display: flex; align-items: center; gap: 10px; cursor: pointer; background: var(--color-surface); user-select: none; }
+  .layer-label { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--color-hint); min-width: 70px; }
+  .layer-title { font-size: 14px; font-weight: 500; color: var(--color-text); }
+  .layer-badge { font-size: 11px; padding: 2px 9px; border-radius: 20px; margin-left: auto; font-weight: 500; }
+  .lb-free { background: var(--color-green-bg); color: var(--color-green); border: 0.5px solid rgba(76,186,106,0.3); }
+  .lb-warn { background: var(--color-amber-bg); color: var(--color-amber); border: 0.5px solid rgba(240,160,32,0.3); }
+  .layer-body { padding: 14px 16px 16px; display: none; background: rgba(255,255,255,0.01); border-top: 0.5px solid var(--color-border); }
+  .layer-body.open { display: block; }
+  .layer-body p { font-size: 13px; color: var(--color-muted); line-height: 1.7; margin-bottom: 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .chip { font-size: 12px; padding: 3px 10px; border-radius: 20px; border: 0.5px solid var(--color-border-em); color: var(--color-muted); }
+  .chip.free { border-color: rgba(76,186,106,0.4); color: var(--color-green); background: var(--color-green-bg); }
+  .detail { display: flex; gap: 10px; font-size: 12px; color: var(--color-muted); margin-top: 6px; align-items: flex-start; }
+  .detail-label { color: var(--color-hint); min-width: 100px; flex-shrink: 0; }
+  .detail-val { color: var(--color-text); }
+
+  /* FLOW */
+  .flow { display: flex; flex-direction: column; }
+  .step { display: grid; grid-template-columns: 36px 1fr; gap: 0 14px; }
+  .step-left { display: flex; flex-direction: column; align-items: center; }
+  .step-num {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; flex-shrink: 0;
+    border: 1.5px solid var(--color-border);
+  }
+  .s-blue .step-num { background: var(--color-blue-bg); color: var(--color-blue); border-color: rgba(74,158,255,0.4); }
+  .s-amber .step-num { background: var(--color-amber-bg); color: var(--color-amber); border-color: rgba(240,160,32,0.4); }
+  .s-green .step-num { background: var(--color-green-bg); color: var(--color-green); border-color: rgba(76,186,106,0.4); }
+  .step-line { width: 1px; flex: 1; min-height: 16px; background: var(--color-border); margin: 4px 0; }
+  .step-right { padding-bottom: 22px; }
+  .step-title { font-size: 14px; font-weight: 500; padding-top: 7px; margin-bottom: 4px; }
+  .step-desc { font-size: 13px; color: var(--color-muted); line-height: 1.65; }
+  .step-tags { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .stag { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 500; }
+  .stag-tool { background: var(--color-blue-bg); color: var(--color-blue); }
+  .stag-quant { background: var(--color-amber-bg); color: var(--color-amber); }
+  .stag-out { background: var(--color-green-bg); color: var(--color-green); }
+
+  /* TREE */
+  .tree {
+    font-family: 'Courier New', monospace; font-size: 13px;
+    line-height: 2; color: var(--color-muted);
+    background: var(--color-surface); padding: 20px;
+    border-radius: var(--radius); border: 0.5px solid var(--color-border);
+  }
+  .tree .folder { color: var(--color-cyan); font-weight: 600; }
+  .tree .comment { color: var(--color-hint); }
+
+  /* COST */
+  .cost-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .cost-table th {
+    text-align: left; font-weight: 500; font-size: 11px;
+    color: var(--color-hint); text-transform: uppercase; letter-spacing: .07em;
+    padding: 0 10px 10px; border-bottom: 0.5px solid var(--color-border);
+  }
+  .cost-table td { padding: 11px 10px; border-bottom: 0.5px solid var(--color-border); color: var(--color-muted); vertical-align: top; }
+  .cost-table tr:last-child td { border-bottom: none; }
+  .cost-table td strong { color: var(--color-text); }
+  .free-pill { display: inline-block; background: var(--color-green-bg); color: var(--color-green); font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 500; }
+  .total-row td { color: var(--color-cyan); font-weight: 600; font-size: 14px; padding-top: 16px; border-bottom: none; }
+  .note { font-size: 12px; color: var(--color-hint); margin-top: 14px; line-height: 1.6; }
+
+  /* TOGGLE ARROW */
+  .arrow { margin-left: 4px; font-size: 10px; color: var(--color-hint); transition: transform .2s; display: inline-block; }
+  .arrow.open { transform: rotate(90deg); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>VisionGuide — Finalized Tech Stack</h1>
+  <p>Problem Statement 1 · CodeRonin · Ahouba 3.0 · IIIT Manipur</p>
+  <div class="badges">
+    <span class="badge badge-cyan">8 Layers</span>
+    <span class="badge badge-green">100% Free Stack</span>
+    <span class="badge badge-amber">Quant × AI Theme</span>
+    <span class="badge badge-cyan">Runs Fully Local</span>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="show('layers',this)">Stack Layers</button>
+  <button class="tab" onclick="show('flow',this)">Integration Flow</button>
+  <button class="tab" onclick="show('files',this)">File Structure</button>
+  <button class="tab" onclick="show('cost',this)">Cost Breakdown</button>
+</div>
+
+<!-- ===== STACK LAYERS ===== -->
+<div class="panel active" id="panel-layers">
+  <div class="layers">
+
+    <div class="layer" id="l1">
+      <div class="layer-header" onclick="toggle('l1')">
+        <span class="layer-label">Layer 1</span>
+        <span class="layer-title">Voice Input <span class="arrow" id="arr-l1">▶</span></span>
+        <span class="layer-badge lb-free">FREE · Local</span>
+      </div>
+      <div class="layer-body" id="body-l1">
+        <div class="chips"><span class="chip free">OpenAI Whisper</span><span class="chip free">PyAudio</span></div>
+        <p>User speaks a goal ("Help me reach the door"). PyAudio captures mic stream in real time. Whisper (small model, ~150MB) runs locally — no internet, no latency, no cost — and transcribes to text. Output is a clean string fed to the LLM agent.</p>
+        <div class="detail"><span class="detail-label">Input:</span><span class="detail-val">Raw audio bytes from microphone</span></div>
+        <div class="detail"><span class="detail-label">Output:</span><span class="detail-val">Transcribed text string, e.g. "Help me reach the door"</span></div>
+        <div class="detail"><span class="detail-label">Why local:</span><span class="detail-val">Faster, no API key, works offline</span></div>
+      </div>
+    </div>
+
+    <div class="layer" id="l2">
+      <div class="layer-header" onclick="toggle('l2')">
+        <span class="layer-label">Layer 2</span>
+        <span class="layer-title">LLM Agent Brain <span class="arrow" id="arr-l2">▶</span></span>
+        <span class="layer-badge lb-free">FREE Tier · Groq</span>
+      </div>
+      <div class="layer-body" id="body-l2">
+        <div class="chips"><span class="chip free">Groq API</span><span class="chip free">LLaMA 3.1 8B</span><span class="chip free">python-dotenv</span></div>
+        <p>The core "agentic" component judges are looking for. Receives the user's goal + current scene context (detected objects + distances). Breaks the goal into subtasks, decides which objects to look for next, and generates spoken guidance. Runs in a loop — no re-prompting needed.</p>
+        <div class="detail"><span class="detail-label">Input:</span><span class="detail-val">User goal text + scene description (objects, distances from quant engine)</span></div>
+        <div class="detail"><span class="detail-label">Output:</span><span class="detail-val">JSON: { "speak": "...", "detect_next": "door handle", "action": "move_forward" }</span></div>
+        <div class="detail"><span class="detail-label">Why Groq:</span><span class="detail-val">Fastest free LLM API — ~300 tokens/sec. Free tier: 30 req/min.</span></div>
+        <div class="detail"><span class="detail-label">Agent loop:</span><span class="detail-val">Speak → detect → measure → re-plan → speak again, until goal reached</span></div>
+      </div>
+    </div>
+
+    <div class="layer" id="l3">
+      <div class="layer-header" onclick="toggle('l3')">
+        <span class="layer-label">Layer 3</span>
+        <span class="layer-title">Camera Feed <span class="arrow" id="arr-l3">▶</span></span>
+        <span class="layer-badge lb-free">FREE · Local</span>
+      </div>
+      <div class="layer-body" id="body-l3">
+        <div class="chips"><span class="chip free">OpenCV</span><span class="chip free">NumPy</span></div>
+        <p>Captures webcam frames at 10–15 FPS. Each frame is a NumPy array (H×W×3 BGR). OpenCV handles resizing to standard inputs for YOLO-World (640×640) and MiDaS (384×384). Same frame feeds both detection and depth simultaneously — parallel, not sequential.</p>
+        <div class="detail"><span class="detail-label">Input:</span><span class="detail-val">Webcam device (USB or laptop cam)</span></div>
+        <div class="detail"><span class="detail-label">Output:</span><span class="detail-val">NumPy array frame fed to Layer 4 and Layer 5 in parallel</span></div>
+        <div class="detail"><span class="detail-label">Frame rate:</span><span class="detail-val">10–15 FPS (sufficient for navigation guidance)</span></div>
+      </div>
+    </div>
+
+    <div class="layer" id="l4">
+      <div class="layer-header" onclick="toggle('l4')">
+        <span class="layer-label">Layer 4</span>
+        <span class="layer-title">Open-Vocab Detection <span class="arrow" id="arr-l4">▶</span></span>
+        <span class="layer-badge lb-free">FREE · Local</span>
+      </div>
+      <div class="layer-body" id="body-l4">
+        <div class="chips"><span class="chip free">YOLO-World</span><span class="chip free">Ultralytics</span><span class="chip free">PyTorch</span></div>
+        <p>Directly satisfies PS1: "new objects can be added without training". YOLO-World takes any text label at runtime and detects matching objects — zero retraining, zero fine-tuning. When LLM says "detect_next: door handle", YOLO-World finds it.</p>
+        <div class="detail"><span class="detail-label">Input:</span><span class="detail-val">Camera frame + list of text labels from LLM (e.g. ["door", "chair", "person"])</span></div>
+        <div class="detail"><span class="detail-label">Output:</span><span class="detail-val">Bounding boxes [x1,y1,x2,y2] + label + confidence score per object</span></div>
+        <div class="detail"><span class="detail-label">Key feature:</span><span class="detail-val">Open-vocabulary = no retraining. Detects ANY object by name on the fly.</span></div>
+        <div class="detail"><span class="detail-label">Model size:</span><span class="detail-val">~50MB (YOLO-World-S, fast variant)</span></div>
+      </div>
+    </div>
+
+    <div class="layer" id="l5">
+      <div class="layer-header" onclick="toggle('l5')">
+        <span class="layer-label">Layer 5</span>
+        <span class="layer-title">Depth Estimation <span class="arrow" id="arr-l5">▶</span></span>
+        <span class="layer-badge lb-free">FREE · Local</span>
+      </div>
+      <div class="layer-body" id="body-l5">
+        <div class="chips"><span class="chip free">MiDaS</span><span class="chip free">PyTorch Hub</span><span class="chip free">NumPy</span></div>
+        <p>Satisfies PS1 requirement for "Depth estimation (Monocular)". MiDaS takes a single RGB frame and outputs a depth map — brighter = closer. Combined with YOLO-World bounding boxes, computes approximate real-world distance to any detected object.</p>
+        <div class="detail"><span class="detail-label">Input:</span><span class="detail-val">RGB camera frame (384×384)</span></div>
+        <div class="detail"><span class="detail-label">Output:</span><span class="detail-val">Depth map array (same H×W), relative depth values 0–1</span></div>
+        <div class="detail"><span class="detail-label">Distance calc:</span><span class="detail-val">Mean depth value within object bounding box → scaled to metres</span></div>
+        <div class="detail"><span class="detail-label">Quant link:</span><span class="detail-val">Feeds into Kalman Filter and Euclidean distance in Layer 6</span></div>
+      </div>
+    </div>
+
+    <div class="layer highlight" id="l6">
+      <div class="layer-header" onclick="toggle('l6')" style="background:rgba(240,160,32,0.05);">
+        <span class="layer-label" style="color:var(--color-amber)">Layer 6 ★</span>
+        <span class="layer-title">Quantitative Engine <span class="arrow open" id="arr-l6">▶</span></span>
+        <span class="layer-badge lb-warn">JUDGES LOVE THIS</span>
+      </div>
+      <div class="layer-body open" id="body-l6">
+        <div class="chips"><span class="chip free">NumPy</span><span class="chip free">SciPy</span><span class="chip free">heapq (stdlib)</span></div>
+        <p>The component that locks in the Quant × AI theme. Four distinct mathematical algorithms, each with a clear quantitative purpose — judges cannot miss this layer.</p>
+        <div class="detail"><span class="detail-label">① Kalman Filter:</span><span class="detail-val">Tracks each detected object across frames. Estimates position even when temporarily occluded. Uses SciPy's linear algebra.</span></div>
+        <div class="detail"><span class="detail-label">② A* Pathfinding:</span><span class="detail-val">Builds a 2D grid from the depth map. Marks obstacle cells (close objects) as blocked. Finds shortest safe path to the target using heapq (Python stdlib).</span></div>
+        <div class="detail"><span class="detail-label">③ Euclidean Dist:</span><span class="detail-val">Computes real distance from camera to target using mean depth region. sqrt((Δx)² + (Δy)² + (Δz)²) on the 3D point cloud.</span></div>
+        <div class="detail"><span class="detail-label">④ Conf. Threshold:</span><span class="detail-val">Statistical filtering — only YOLO detections with confidence ≥ 0.6 pass to the agent. Eliminates noise.</span></div>
+      </div>
+    </div>
+
+    <div class="layer" id="l7">
+      <div class="layer-header" onclick="toggle('l7')">
+        <span class="layer-label">Layer 7</span>
+        <span class="layer-title">Voice Output (TTS) <span class="arrow" id="arr-l7">▶</span></span>
+        <span class="layer-badge lb-free">FREE · Offline</span>
+      </div>
+      <div class="layer-body" id="body-l7">
+        <div class="chips"><span class="chip free">pyttsx3</span></div>
+        <p>Converts LLM agent's text guidance into spoken audio. Runs fully offline using system TTS engine (SAPI5 on Windows, NSSpeechSynthesizer on macOS, espeak on Linux). No API calls, no latency beyond synthesis time (~0.5s).</p>
+        <div class="detail"><span class="detail-label">Input:</span><span class="detail-val">"Door detected 1.8 metres ahead, slightly to your left"</span></div>
+        <div class="detail"><span class="detail-label">Output:</span><span class="detail-val">Audio playback through speakers or headphones</span></div>
+        <div class="detail"><span class="detail-label">Config:</span><span class="detail-val">Rate: 150 wpm, Volume: 1.0, Voice: default system voice</span></div>
+      </div>
+    </div>
+
+    <div class="layer" id="l8">
+      <div class="layer-header" onclick="toggle('l8')">
+        <span class="layer-label">Layer 8</span>
+        <span class="layer-title">Web Interface (HUD) <span class="arrow" id="arr-l8">▶</span></span>
+        <span class="layer-badge lb-free">FREE · Flask</span>
+      </div>
+      <div class="layer-body" id="body-l8">
+        <div class="chips"><span class="chip free">Flask</span><span class="chip free">Socket.IO</span><span class="chip free">HTML/CSS/JS</span></div>
+        <p>Anime-styled visual HUD for caregivers or sighted helpers. Shows live camera feed with YOLO bounding boxes, depth heat map, Kalman tracking trails, A* path overlay, and LLM agent's current spoken text. Flask serves the page; Socket.IO streams detection data to the browser in real time.</p>
+        <div class="detail"><span class="detail-label">Why web:</span><span class="detail-val">No install for judges — open browser → localhost:5000 → full demo.</span></div>
+        <div class="detail"><span class="detail-label">Anime UI:</span><span class="detail-val">Dark HUD, glowing bounding boxes, kanji accent (視覚), scanline overlay, neon trails for Kalman paths</span></div>
+        <div class="detail"><span class="detail-label">Judging tip:</span><span class="detail-val">Judges SEE the quant working — depth map, path overlay, tracking trails all visible live</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== INTEGRATION FLOW ===== -->
+<div class="panel" id="panel-flow">
+  <div class="flow">
+    <div class="step s-blue"><div class="step-left"><div class="step-num">1</div><div class="step-line"></div></div><div class="step-right"><div class="step-title">User speaks a goal</div><div class="step-desc">PyAudio captures microphone. Whisper model transcribes locally in ~0.8s. Text string passed to the LLM agent.</div><div class="step-tags"><span class="stag stag-tool">PyAudio</span><span class="stag stag-tool">Whisper</span></div></div></div>
+    <div class="step s-blue"><div class="step-left"><div class="step-num">2</div><div class="step-line"></div></div><div class="step-right"><div class="step-title">LLM agent plans the task</div><div class="step-desc">Groq API (LLaMA 3) receives goal text + previous scene context. Returns JSON: what to speak, what to detect next, what navigation action to take. Agentic loop — no re-prompting.</div><div class="step-tags"><span class="stag stag-tool">Groq API</span><span class="stag stag-tool">LLaMA 3</span></div></div></div>
+    <div class="step s-blue"><div class="step-left"><div class="step-num">3</div><div class="step-line"></div></div><div class="step-right"><div class="step-title">Camera captures a frame</div><div class="step-desc">OpenCV reads the next webcam frame as a NumPy array. Same frame sent simultaneously to Layer 4 (detection) and Layer 5 (depth) — parallel processing.</div><div class="step-tags"><span class="stag stag-tool">OpenCV</span><span class="stag stag-tool">NumPy</span></div></div></div>
+    <div class="step s-amber"><div class="step-left"><div class="step-num">4</div><div class="step-line"></div></div><div class="step-right"><div class="step-title">YOLO-World detects objects</div><div class="step-desc">Takes the LLM's detect_next labels + camera frame. Returns bounding boxes and confidence scores. No retraining — works for any object name at runtime.</div><div class="step-tags"><span class="stag stag-tool">YOLO-World</span><span class="stag stag-quant">Confidence ≥ 0.6 filter</span></div></div></div>
+    <div class="step s-amber"><div class="step-left"><div class="step-num">5</div><div class="step-line"></div></div><div class="step-right"><div class="step-title">MiDaS generates depth map</div><div class="step-desc">Same frame → MiDaS → depth array. Brighter pixels = closer objects. Combined with bounding boxes from Step 4 to compute per-object distances.</div><div class="step-tags"><span class="stag stag-tool">MiDaS</span><span class="stag stag-quant">Depth values 0–1</span></div></div></div>
+    <div class="step s-amber"><div class="step-left"><div class="step-num">6</div><div class="step-line"></div></div><div class="step-right"><div class="step-title">Quantitative Engine processes data</div><div class="step-desc">Four algorithms: (a) Kalman Filter tracks each object across frames. (b) Euclidean distance from depth values. (c) A* builds obstacle grid and finds safe path. (d) Scene description string built for LLM agent.</div><div class="step-tags"><span class="stag stag-quant">Kalman Filter</span><span class="stag stag-quant">A* Pathfinding</span><span class="stag stag-quant">Euclidean Distance</span></div></div></div>
+    <div class="step s-green"><div class="step-left"><div class="step-num">7</div><div class="step-line"></div></div><div class="step-right"><div class="step-title">LLM agent generates guidance</div><div class="step-desc">Scene description appended to agent context. LLM produces next spoken instruction. Loop returns to Step 3 automatically.</div><div class="step-tags"><span class="stag stag-tool">Groq API</span><span class="stag stag-tool">LLaMA 3</span></div></div></div>
+    <div class="step s-green"><div class="step-left"><div class="step-num">8</div></div><div class="step-right"><div class="step-title">Audio + Visual output delivered</div><div class="step-desc">pyttsx3 speaks the guidance aloud. Flask+Socket.IO pushes the annotated frame (bounding boxes, depth overlay, A* path, tracking trails) to the browser HUD simultaneously.</div><div class="step-tags"><span class="stag stag-out">pyttsx3 TTS</span><span class="stag stag-out">Flask HUD</span><span class="stag stag-out">Socket.IO</span></div></div></div>
+  </div>
+</div>
+
+<!-- ===== FILE STRUCTURE ===== -->
+<div class="panel" id="panel-files">
+  <div class="tree">
+<span class="folder">visionguide/</span>
+├── <span class="folder">app/</span>
+│   ├── app.py                 <span class="comment"># Flask server + Socket.IO</span>
+│   ├── agent.py               <span class="comment"># LLM agent loop (Groq)</span>
+│   ├── speech.py              <span class="comment"># Whisper STT + pyttsx3 TTS</span>
+│   ├── vision.py              <span class="comment"># OpenCV camera capture</span>
+│   ├── detection.py           <span class="comment"># YOLO-World wrapper</span>
+│   ├── depth.py               <span class="comment"># MiDaS depth estimation</span>
+│   └── quant.py               <span class="comment"># Kalman, A*, Euclidean dist</span>
+│
+├── <span class="folder">templates/</span>
+│   └── index.html             <span class="comment"># Anime HUD frontend</span>
+│
+├── <span class="folder">static/</span>
+│   ├── style.css              <span class="comment"># Anime dark theme</span>
+│   └── hud.js                 <span class="comment"># Socket.IO client, canvas overlay</span>
+│
+├── <span class="folder">models/</span>                    <span class="comment"># Auto-downloaded on first run</span>
+│   ├── whisper-small.pt
+│   ├── yolo_world_s.pt
+│   └── midas_v3.pt
+│
+├── .env                       <span class="comment"># GROQ_API_KEY (gitignored)</span>
+├── .gitignore
+├── requirements.txt
+└── README.md                  <span class="comment"># Technical Disclosure Form</span>
+  </div>
+</div>
+
+<!-- ===== COST BREAKDOWN ===== -->
+<div class="panel" id="panel-cost">
+  <table class="cost-table">
+    <thead><tr><th>Tool</th><th>Purpose</th><th>Cost</th><th>Limit / Note</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Whisper (local)</strong></td><td>Speech → Text</td><td><span class="free-pill">FREE</span></td><td>Runs offline. No limits.</td></tr>
+      <tr><td><strong>YOLO-World (local)</strong></td><td>Object detection</td><td><span class="free-pill">FREE</span></td><td>Runs offline. No limits.</td></tr>
+      <tr><td><strong>MiDaS (local)</strong></td><td>Depth estimation</td><td><span class="free-pill">FREE</span></td><td>Runs offline. No limits.</td></tr>
+      <tr><td><strong>Groq API</strong></td><td>LLM agent brain</td><td><span class="free-pill">FREE</span></td><td>30 req/min, 6k tokens/min. More than enough for a 24hr hackathon demo.</td></tr>
+      <tr><td><strong>pyttsx3</strong></td><td>Text → Speech</td><td><span class="free-pill">FREE</span></td><td>Offline. Uses system TTS engine.</td></tr>
+      <tr><td><strong>Flask + Socket.IO</strong></td><td>Web server + live stream</td><td><span class="free-pill">FREE</span></td><td>Python packages. Runs on localhost — no hosting needed.</td></tr>
+      <tr><td><strong>NumPy / SciPy</strong></td><td>Kalman, A*, math</td><td><span class="free-pill">FREE</span></td><td>Standard Python scientific stack.</td></tr>
+      <tr><td><strong>OpenCV</strong></td><td>Camera frames</td><td><span class="free-pill">FREE</span></td><td>Open source, Apache 2.0.</td></tr>
+      <tr class="total-row"><td colspan="2">Total hackathon cost</td><td colspan="2">₹0.00 — Zero cost, entire stack runs locally</td></tr>
+    </tbody>
+  </table>
+  <p class="note">Only the Groq API requires internet. Everything else runs fully offline. Even if the venue internet goes down, 7 out of 8 layers keep working.</p>
+</div>
+
+<script>
+function show(id, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+function toggle(id) {
+  const body = document.getElementById('body-' + id);
+  const arr  = document.getElementById('arr-' + id);
+  const isOpen = body.classList.toggle('open');
+  arr.classList.toggle('open', isOpen);
+}
+</script>
+</body>
+</html>
