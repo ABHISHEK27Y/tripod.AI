@@ -302,7 +302,7 @@ All code was written manually by team members. AI tools (GitHub Copilot / Claude
 > without disclosure may lead to immediate disqualification.
 > All team members have reviewed and agree to this declaration.
 
-**Team Representative Name**:Abhishek Yadav
+**Team Representative Name**: Abhishek Yadav
 
 **Date**: 21–22 March 2026
 
