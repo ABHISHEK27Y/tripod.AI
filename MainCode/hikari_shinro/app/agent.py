@@ -61,11 +61,11 @@ class HikariAgent:
 
     MAX_HISTORY = 6          # keep last N turns to avoid context overflow
     RETRY_LIMIT = 2
-    REQUEST_INTERVAL = 0.8   # min seconds between LLM calls
+    REQUEST_INTERVAL = 4.0   # min seconds between LLM calls
 
     def __init__(self):
         self._client       = None
-        self._model        = "llama3-8b-8192"   # fast, free tier Groq
+        self._model        = "llama-3.1-8b-instant"
         self._history: List[Dict] = []
         self._goal         = ""
         self._last_call    = 0.0
@@ -129,7 +129,7 @@ class HikariAgent:
                 response = self._client.chat.completions.create(
                     model=self._model,
                     messages=messages,
-                    max_tokens=300,
+                    max_tokens=0,
                     temperature=0.3,
                     response_format={"type": "json_object"},
                 )

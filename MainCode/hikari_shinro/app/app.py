@@ -64,7 +64,7 @@ state = {
     "last_speak":      "",
     "goal_reached":    False,
     "frame_count":     0,
-    "agent_interval":  3,    # call LLM every N frames
+    "agent_interval":  15,    # call LLM every N frames
     "connected_clients": 0,
 }
 state_lock = threading.Lock()
