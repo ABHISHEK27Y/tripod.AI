@@ -18,10 +18,17 @@ Install packages:
 pip install -r requirements.txt
 ```
 
-Run:
+Environment Setup:
 ```bash
-python -m perception.runner
+cp .env.example .env
+# Edit .env and paste your GROQ_API_KEY
 ```
+
+Run Backend:
+```bash
+python main.py
+```
+*The Flask HUD stream will be available at `http://localhost:5000`*
 
 ---
 
@@ -36,8 +43,11 @@ docker build -t tripod-ai .
 ```bash
 docker run --rm \
   --device /dev/video0:/dev/video0 \
+  --device /dev/snd \
+  -p 5000:5000 \
   -e DISPLAY=$DISPLAY \
   -v /tmp/.X11-unix:/tmp/.X11-unix \
+  --env-file .env \
   tripod-ai
 ```
 
