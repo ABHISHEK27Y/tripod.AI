@@ -1,6 +1,10 @@
+from navigation.control_hysteresis import ControlHysteresis
+
+
 class NavigatorFSM:
     def __init__(self, target_label="door"):
         self.target_label = target_label
+        self.hysteresis = ControlHysteresis()
 
     def decide(self, world, nav_state):
         """
@@ -19,15 +23,17 @@ class NavigatorFSM:
                 "state": "BLIND",
             }
 
-        # ---------- SAFETY OVERRIDE ----------
-        if world["collision_risk"]:
+        # ---------- SAFETY OVERRIDE (with hysteresis) ----------
+        collision_confirmed = self.hysteresis.collision_confirmed(world["collision_risk"])
+        if collision_confirmed:
             nav_state.set_collision(True)
             nav_state.transition("AVOID")
         else:
             nav_state.set_collision(False)
 
-        # ---------- TARGET VISIBILITY ----------
-        if world["target_visible"]:
+        # ---------- TARGET VISIBILITY (with hysteresis) ----------
+        target_confirmed = self.hysteresis.target_confirmed(world["target_visible"])
+        if target_confirmed:
             nav_state.set_target_lock(True)
         else:
             nav_state.set_target_lock(False)
@@ -71,7 +77,14 @@ class NavigatorFSM:
                 nav_state.transition("SEARCH")
 
         # ---------- ACTION OUTPUT ----------
-        return self._action_for_state(world, nav_state)
+        result = self._action_for_state(world, nav_state)
+
+        # apply action hysteresis (prevent rapid switching)
+        if not self.hysteresis.allow_action_change(result["action"]):
+            result["action"] = self.hysteresis.get_last_action()
+            result["reason"] += " (held)"
+
+        return result
 
     def _target_centered(self, world):
         for o in world["objects"]:
