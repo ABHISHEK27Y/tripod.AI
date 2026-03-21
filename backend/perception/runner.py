@@ -10,6 +10,8 @@ from perception.tracker import IOUTracker
 from state.world_state import WorldState
 from state.navigation_state import NavigationState
 from navigation.navigator import NavigatorFSM
+from speech.rate_limiter import SpeechLimiter
+from speech.tts import speak
 
 
 def draw(frame, world_snapshot, nav_snapshot, decision):
@@ -64,6 +66,9 @@ def main():
     world = WorldState()
     nav_state = NavigationState()
     navigator = NavigatorFSM(target_label="door")
+    
+    # ---------- speech components ----------
+    speech_limiter = SpeechLimiter()
 
     cam.open()
     prev = time.time()
@@ -98,6 +103,11 @@ def main():
                 print(
                     f"[{nav_snapshot['state']}] → {decision['action']} | {decision['reason']}"
                 )
+                
+                # ---------- speech output ----------
+                action = decision['action']
+                if speech_limiter.should_speak(action):
+                    speak(f"{action}. {decision['reason']}")
 
             # ---------- visualization ----------
             draw(frame, world_snapshot, nav_snapshot, decision)
@@ -118,8 +128,8 @@ def main():
             )
 
             cv2.imshow("Assistive Navigation FSM", frame)
-
-            if cv2.waitKey(1) & 0xFF == ord("q"):
+            
+            if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
     finally:
