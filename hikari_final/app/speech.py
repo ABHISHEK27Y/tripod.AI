@@ -52,24 +52,43 @@ class TTSEngine:
 
     def _worker(self):
         try:
-            import pyttsx3
-            engine = pyttsx3.init()
-            engine.setProperty("rate",   self._rate)
-            engine.setProperty("volume", self._volume)
-            voices = engine.getProperty("voices")
-            if voices:
-                eng = [v for v in voices if "english" in v.name.lower() or "en" in v.id.lower()]
-                if eng:
-                    engine.setProperty("voice", eng[0].id)
-            logger.info("pyttsx3 engine initialised.")
+            import sys
+            is_win = sys.platform == "win32"
+            
+            if is_win:
+                import pythoncom
+                import win32com.client
+                pythoncom.CoInitialize()
+                speaker = win32com.client.Dispatch("SAPI.SpVoice")
+                # SAPI rate is between -10 and 10
+                speaker.Rate = 1 
+                speaker.Volume = int(self._volume * 100)
+                logger.info("SAPI5 engine initialised via win32com.")
+            else:
+                import pyttsx3
+                speaker = pyttsx3.init()
+                speaker.setProperty("rate", self._rate)
+                speaker.setProperty("volume", self._volume)
+                voices = speaker.getProperty("voices")
+                if voices:
+                    eng = [v for v in voices if "english" in v.name.lower() or "en" in v.id.lower()]
+                    if eng:
+                        speaker.setProperty("voice", eng[0].id)
+                logger.info("pyttsx3 engine initialised.")
+
             while self._running:
                 try:
                     text = self._queue.get(timeout=0.5)
                     if text is None:
                         break
                     self._speaking = True
-                    engine.say(text)
-                    engine.runAndWait()
+                    
+                    if is_win:
+                        speaker.Speak(text)
+                    else:
+                        speaker.say(text)
+                        speaker.runAndWait()
+                        
                     self._speaking = False
                     time.sleep(1.5)   # pause after speaking so mic doesn't catch output
                 except queue.Empty:

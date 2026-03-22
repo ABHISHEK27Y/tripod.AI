@@ -27,28 +27,28 @@ Rules:
 class HikariAgent:
     MAX_HISTORY    = 4
     RETRY_LIMIT    = 2
-    REQUEST_INTERVAL = 6.0      # seconds between calls — respects free tier
+    REQUEST_INTERVAL = 3.0      # faster for local models
 
     def __init__(self):
-        self._client   = None
-        self._model    = "llama-3.1-8b-instant"
+        self._model    = "minimax-m2.5:cloud"  # The model the user just downloaded
         self._history: List[Dict] = []
         self._goal     = ""
         self._last     = 0.
         self._loaded   = False
+        self._endpoint = "http://localhost:11434/api/chat"
 
     def load(self):
         try:
-            from groq import Groq
-            key = os.getenv("GROQ_API_KEY","")
-            if not key:
-                logger.error("GROQ_API_KEY not set in .env")
-                return
-            self._client  = Groq(api_key=key)
-            self._loaded  = True
-            logger.info("Groq LLM agent loaded.")
+            import requests
+            # Pre-flight check to see if Ollama is running
+            r = requests.get("http://localhost:11434/")
+            if r.status_code == 200:
+                self._loaded = True
+                logger.info(f"Ollama Agent loaded (model: {self._model})")
+            else:
+                logger.error("Ollama responded but unexpected status.")
         except Exception as e:
-            logger.error(f"Groq init error: {e}")
+            logger.error(f"Cannot connect to local Ollama. Ensure it is running! Error: {e}")
 
     def set_goal(self, goal: str):
         self._goal    = goal.strip()
@@ -56,7 +56,7 @@ class HikariAgent:
         logger.info(f"Agent goal: '{self._goal}'")
 
     def reason(self, scene: str) -> Optional[Dict[str, Any]]:
-        if not self._loaded or not self._client:
+        if not self._loaded:
             return self._fallback(scene)
 
         elapsed = time.time() - self._last
@@ -69,24 +69,30 @@ class HikariAgent:
             self._history = self._history[-self.MAX_HISTORY*2:]
 
         messages = [{"role":"system","content":SYSTEM_PROMPT}] + self._history
-
+        import requests
+        
         for attempt in range(self.RETRY_LIMIT):
             try:
-                resp = self._client.chat.completions.create(
-                    model=self._model,
-                    messages=messages,
-                    max_tokens=200,
-                    temperature=0.3,
-                    response_format={"type":"json_object"},
-                )
+                resp = requests.post(self._endpoint, json={
+                    "model": self._model,
+                    "messages": messages,
+                    "format": "json",
+                    "stream": False,
+                    "options": {"temperature": 0.3}
+                }, timeout=15)
                 self._last = time.time()
-                raw = resp.choices[0].message.content.strip()
-                parsed = self._parse(raw)
-                if parsed:
-                    self._history.append({"role":"assistant","content":raw})
-                    return parsed
+                
+                if resp.status_code == 200:
+                    raw = resp.json()["message"]["content"].strip()
+                    parsed = self._parse(raw)
+                    if parsed:
+                        self._history.append({"role":"assistant","content":raw})
+                        return parsed
+                else:
+                    logger.warning(f"Ollama returned {resp.status_code}: {resp.text}")
+                    
             except Exception as e:
-                logger.warning(f"LLM attempt {attempt+1}: {e}")
+                logger.warning(f"Ollama LLM attempt {attempt+1} failed: {e}")
                 time.sleep(1.*(attempt+1))
 
         return self._fallback(scene)
