@@ -56,6 +56,8 @@ state = {
     "frame_count":     0,
     "agent_interval":  25,          # call LLM every 25 frames ≈ every 2 secs
     "connected":       0,
+    "last_fast_speak": "",
+    "last_fast_time":  0.0,
 }
 lock = threading.Lock()
 
@@ -104,6 +106,19 @@ def main_loop():
             pipeline.emit_frame(annotated, meta)
         except Exception as e:
             logger.warning(f"Pipeline: {e}"); time.sleep(0.1); continue
+            
+        scene_str = meta.get("scene", "")
+        if "Navigation: " in scene_str:
+            path_instr = scene_str.split("Navigation: ")[-1].strip(" .")
+            if path_instr:
+                now = time.time()
+                with lock:
+                    if (path_instr != state["last_fast_speak"] and (now - state["last_fast_time"] > 1.5)) or (now - state["last_fast_time"] > 3.0):
+                        if path_instr != "path clear, proceed":
+                            tts.speak(path_instr, priority=False)
+                            state["last_fast_speak"] = path_instr
+                            state["last_fast_time"]  = now
+
         fi += 1
         if fi % interval == 0:
             _agent_call(meta.get("scene",""))

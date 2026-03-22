@@ -53,17 +53,25 @@ class TTSEngine:
     def _worker(self):
         try:
             import sys
+            import os
             is_win = sys.platform == "win32"
+            is_linux = sys.platform.startswith("linux")
             
             if is_win:
                 import pythoncom
                 import win32com.client
-                pythoncom.CoInitialize()
+                try:
+                    pythoncom.CoInitialize()
+                except Exception:
+                    pass
                 speaker = win32com.client.Dispatch("SAPI.SpVoice")
                 # SAPI rate is between -10 and 10
                 speaker.Rate = 1 
                 speaker.Volume = int(self._volume * 100)
                 logger.info("SAPI5 engine initialised via win32com.")
+            elif is_linux:
+                speaker = None
+                logger.info("Linux espeak enabled.")
             else:
                 import pyttsx3
                 speaker = pyttsx3.init()
@@ -85,6 +93,9 @@ class TTSEngine:
                     
                     if is_win:
                         speaker.Speak(text)
+                    elif is_linux:
+                        safe = text.replace("'", "")
+                        os.system(f"espeak -s {self._rate} '{safe}' >/dev/null 2>&1")
                     else:
                         speaker.say(text)
                         speaker.runAndWait()
