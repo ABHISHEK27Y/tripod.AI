@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>視覚 — Hikari Shinro AI</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0b0d14;--surf:#111827;--cyan:#00d4dc;--red:#cc1a1a;--amber:#f0a020;--green:#2ecc71;--muted:#6b7280;--white:#e8e6de;--font:'Courier New',monospace}
+html,body{height:100%;background:var(--bg);color:var(--white);font-family:var(--font);overflow:hidden}
+.root{display:grid;grid-template-rows:36px 1fr 36px;grid-template-columns:1fr 300px;height:100vh}
+.topbar{grid-column:1/-1;background:#080a10;border-bottom:1px solid rgba(0,212,220,.2);display:flex;align-items:center;padding:0 16px;gap:12px}
+.logo{font-size:13px;font-weight:bold;letter-spacing:3px;color:var(--cyan)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);transition:background .3s}
+.dot.live{background:var(--green);box-shadow:0 0 6px var(--green)}
+.status{font-size:11px;color:var(--muted)}
+.spacer{flex:1}
+.fc{font-size:10px;color:var(--muted);letter-spacing:1px}
+.video-panel{position:relative;background:#060810;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#feed{width:100%;height:100%;object-fit:contain;display:none}
+.nofeed{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);font-size:13px;gap:8px}
+.nofeed .kanji{font-size:48px;opacity:.15}
+.br{position:absolute;width:20px;height:20px;pointer-events:none}
+.br.tl{top:8px;left:8px;border-top:2px solid var(--cyan);border-left:2px solid var(--cyan)}
+.br.tr{top:8px;right:8px;border-top:2px solid var(--cyan);border-right:2px solid var(--cyan)}
+.br.bl{bottom:8px;left:8px;border-bottom:2px solid var(--cyan);border-left:2px solid var(--cyan)}
+.br.br2{bottom:8px;right:8px;border-bottom:2px solid var(--cyan);border-right:2px solid var(--cyan)}
+#bubble{position:absolute;bottom:12px;left:12px;right:12px;background:rgba(8,10,16,.9);border:1px solid var(--cyan);border-radius:4px;padding:8px 12px;font-size:12px;line-height:1.5;display:none}
+#bubble.show{display:block}
+#bubble .lbl{font-size:9px;color:var(--cyan);letter-spacing:2px;margin-bottom:4px}
+.sidebar{background:var(--surf);border-left:1px solid rgba(0,212,220,.15);display:flex;flex-direction:column;overflow:hidden}
+.sec{border-bottom:1px solid rgba(255,255,255,.05);padding:12px}
+.sec-title{font-size:9px;letter-spacing:3px;color:var(--cyan);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.sec-title::after{content:'';flex:1;height:1px;background:rgba(0,212,220,.2)}
+.goal-row{display:flex;gap:6px}
+#goal-input{flex:1;background:rgba(0,212,220,.05);border:1px solid rgba(0,212,220,.25);border-radius:3px;padding:6px 10px;font-size:11px;color:var(--white);font-family:var(--font);outline:none}
+#goal-input:focus{border-color:var(--cyan)}
+.btn{padding:6px 12px;border-radius:3px;border:1px solid rgba(0,212,220,.3);background:transparent;color:var(--white);font-size:11px;cursor:pointer;font-family:var(--font);transition:all .15s}
+.btn:hover{background:var(--cyan);color:#000;border-color:var(--cyan)}
+.btn.red{border-color:var(--red);color:var(--red)}
+.btn.red:hover{background:var(--red);color:#fff}
+.btn.grn{border-color:var(--green);color:var(--green)}
+.btn.grn:hover{background:var(--green);color:#000}
+#curgoal{font-size:11px;color:var(--amber);padding:4px 0;min-height:18px}
+.action-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;letter-spacing:1px;border:1px solid var(--muted);color:var(--muted);transition:all .2s}
+.action-badge.move_forward{border-color:var(--green);color:var(--green)}
+.action-badge.stop{border-color:var(--red);color:var(--red);box-shadow:0 0 6px var(--red)}
+.action-badge.turn_left,.action-badge.turn_right{border-color:var(--amber);color:var(--amber)}
+#detlist{max-height:160px;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+#detlist::-webkit-scrollbar{width:3px}
+#detlist::-webkit-scrollbar-thumb{background:rgba(0,212,220,.2)}
+.det{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:3px;border:1px solid rgba(255,255,255,.04);font-size:10px}
+.det-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.det-lbl{flex:1;color:var(--white)}
+.det-dist{color:var(--amber)}
+.det-conf{color:var(--muted);font-size:9px}
+#syslog{flex:1;overflow-y:auto;padding:8px;font-size:10px;line-height:1.8;color:var(--muted)}
+#syslog::-webkit-scrollbar{width:2px}
+.log-info{color:var(--muted)}
+.log-speak{color:var(--cyan)}
+.log-warn{color:var(--amber)}
+.log-ok{color:var(--green)}
+.btmbar{grid-column:1/-1;background:#080a10;border-top:1px solid rgba(0,212,220,.15);display:flex;align-items:center;padding:0 16px;gap:16px;font-size:10px;color:var(--muted)}
+#scenetxt{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:rgba(255,255,255,.45)}
+#fpsd{color:var(--cyan);flex-shrink:0}
+.kdec{color:rgba(0,212,220,.3);letter-spacing:2px}
+</style>
+</head>
+<body>
+<div class="root">
+  <div class="topbar">
+    <div class="logo">視覚 HIKARI SHINRO AI</div>
+    <div class="dot" id="dot"></div>
+    <span class="status" id="stxt">Connecting...</span>
+    <div class="spacer"></div>
+    <span class="kdec">光の進路</span>
+    <span class="fc" id="fc">FRAME: 0</span>
+  </div>
+
+  <div class="video-panel">
+    <div class="nofeed" id="nofeed">
+      <div class="kanji">視覚</div>
+      <span>Waiting for camera...</span>
+      <span style="font-size:11px;color:#444;margin-top:8px">Press START or speak a goal</span>
+    </div>
+    <img id="feed" alt="live">
+    <div class="br tl"></div><div class="br tr"></div>
+    <div class="br bl"></div><div class="br br2"></div>
+    <div id="bubble">
+      <div class="lbl">AGENT GUIDANCE</div>
+      <div id="btxt"></div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sec">
+      <div class="sec-title">Navigation Goal</div>
+      <div class="goal-row">
+        <input type="text" id="goal-input" placeholder='"Find the chair"' />
+        <button class="btn grn" onclick="setGoal()">SET</button>
+      </div>
+      <div id="curgoal" style="margin-top:6px">No goal set — speak or type</div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Controls</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn grn" onclick="startSys()">▶ START</button>
+        <button class="btn red"  onclick="stopSys()">■ STOP</button>
+      </div>
+      <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:10px;color:var(--muted)">Action:</span>
+        <span class="action-badge" id="abadge">IDLE</span>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="sec-title">Live Detections</div>
+      <div id="detlist"><div style="font-size:10px;text-align:center;color:var(--muted);padding:8px">No detections yet</div></div>
+    </div>
+    <div class="sec" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+      <div class="sec-title">System Log</div>
+      <div id="syslog"></div>
+    </div>
+  </div>
+
+  <div class="btmbar">
+    <span class="kdec">光</span>
+    <span id="scenetxt">Waiting for scene data...</span>
+    <span id="fpsd"></span>
+  </div>
+</div>
+
+<script>
+const socket=io({transports:["websocket","polling"]});
+let lastTs=Date.now(), fpsBuf=[], bubbleTimer=null;
+const COLORS=["#00d4dc","#f0a020","#2ecc71","#9b59b6","#e74c3c","#3498db"];
+let cm={},ci=0;
+function gc(l){if(!cm[l])cm[l]=COLORS[ci++%COLORS.length];return cm[l]}
+
+socket.on("connect",()=>{
+  document.getElementById("dot").className="dot live";
+  document.getElementById("stxt").textContent="LIVE";
+  addLog("Connected","ok"); fetchStatus();
+});
+socket.on("disconnect",()=>{
+  document.getElementById("dot").className="dot";
+  document.getElementById("stxt").textContent="OFFLINE";
+  addLog("Disconnected","warn");
+});
+
+socket.on("frame",d=>{
+  if(d.image){
+    const img=document.getElementById("feed");
+    img.src="data:image/jpeg;base64,"+d.image;
+    img.style.display="block";
+    document.getElementById("nofeed").style.display="none";
+  }
+  const now=Date.now(); fpsBuf.push(1000/(now-lastTs)); lastTs=now;
+  if(fpsBuf.length>10)fpsBuf.shift();
+  document.getElementById("fpsd").textContent=(fpsBuf.reduce((a,b)=>a+b,0)/fpsBuf.length).toFixed(1)+" FPS";
+  document.getElementById("fc").textContent="FRAME: "+(d.frame_count||0);
+  if(d.scene)document.getElementById("scenetxt").textContent=d.scene;
+  renderDets(d.detections||[]);
+  if(d.action){const b=document.getElementById("abadge");b.textContent=d.action.replace("_"," ").toUpperCase();b.className="action-badge "+d.action}
+});
+
+socket.on("agent_speak",d=>{
+  showBubble(d.text);
+  addLog("AGENT: "+d.text,"speak");
+  if(d.action){const b=document.getElementById("abadge");b.className="action-badge "+d.action;b.textContent=d.action.replace("_"," ").toUpperCase()}
+});
+
+socket.on("goal_updated",d=>{
+  document.getElementById("curgoal").textContent="→ "+d.goal;
+  addLog("Goal: "+d.goal,"ok");
+});
+
+socket.on("goal_reached",d=>{
+  addLog("GOAL REACHED: "+d.goal,"ok");
+  showBubble("Goal reached! You have arrived at "+d.goal);
+});
+
+socket.on("connected",d=>{
+  if(d.goal)document.getElementById("curgoal").textContent="→ "+d.goal;
+});
+
+function setGoal(){
+  const v=document.getElementById("goal-input").value.trim();
+  if(!v)return;
+  fetch("/api/goal",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({goal:v})})
+    .then(r=>r.json()).then(d=>{if(d.ok){document.getElementById("goal-input").value="";addLog("Goal set: "+v,"ok")}});
+}
+function startSys(){
+  fetch("/api/start",{method:"POST"}).then(r=>r.json()).then(d=>addLog(d.ok?"Started":"Already running",d.ok?"ok":"warn"));
+}
+function stopSys(){
+  fetch("/api/stop",{method:"POST"}).then(r=>r.json()).then(()=>addLog("Stopped","warn"));
+}
+function fetchStatus(){
+  fetch("/api/status").then(r=>r.json()).then(d=>{
+    if(d.goal)document.getElementById("curgoal").textContent="→ "+d.goal;
+  }).catch(()=>{});
+}
+function showBubble(txt){
+  document.getElementById("btxt").textContent=txt;
+  document.getElementById("bubble").className="show";
+  if(bubbleTimer)clearTimeout(bubbleTimer);
+  bubbleTimer=setTimeout(()=>document.getElementById("bubble").className="",7000);
+}
+function renderDets(dets){
+  const el=document.getElementById("detlist");
+  if(!dets.length){el.innerHTML='<div style="font-size:10px;text-align:center;color:var(--muted);padding:8px">No objects detected</div>';return}
+  el.innerHTML=dets.map(d=>`<div class="det">
+    <div class="det-dot" style="background:${gc(d.label)};box-shadow:0 0 4px ${gc(d.label)}"></div>
+    <span class="det-lbl">${d.label}</span>
+    <span class="det-dist">${d.distance_text||""}</span>
+    <span class="det-conf">${d.conf?(d.conf*100).toFixed(0)+"%":""}</span>
+  </div>`).join("");
+}
+function addLog(msg,type="info"){
+  const el=document.getElementById("syslog");
+  const t=new Date().toLocaleTimeString("en-US",{hour12:false});
+  const d=document.createElement("div");
+  d.className="log-"+type; d.textContent=`[${t}] ${msg}`;
+  el.appendChild(d); el.scrollTop=el.scrollHeight;
+  while(el.children.length>80)el.removeChild(el.firstChild);
+}
+document.getElementById("goal-input").addEventListener("keydown",e=>{if(e.key==="Enter")setGoal()});
+addLog("Hikari Shinro AI HUD ready","ok");
+addLog("Speak your goal or type it above","info");
+</script>
+</body>
+</html>

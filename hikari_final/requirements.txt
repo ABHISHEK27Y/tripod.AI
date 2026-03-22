@@ -1,0 +1,14 @@
+flask==3.0.3
+flask-socketio==5.3.6
+opencv-python==4.9.0.80
+numpy==2.1.0
+scipy==1.13.0
+timm==0.9.16
+openai-whisper==20231117
+pyttsx3==2.90
+sounddevice==0.5.5
+groq==0.8.0
+python-dotenv==1.0.1
+pillow==10.3.0
+requests==2.31.0
+ultralytics==8.0.196
