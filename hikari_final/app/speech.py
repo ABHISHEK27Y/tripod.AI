@@ -51,35 +51,57 @@ class TTSEngine:
         self._last_text = text
 
     def _worker(self):
-        try:
-            import pyttsx3
-            engine = pyttsx3.init()
-            engine.setProperty("rate",   self._rate)
-            engine.setProperty("volume", self._volume)
-            voices = engine.getProperty("voices")
-            if voices:
-                eng = [v for v in voices if "english" in v.name.lower() or "en" in v.id.lower()]
-                if eng:
-                    engine.setProperty("voice", eng[0].id)
-            logger.info("pyttsx3 engine initialised.")
-            while self._running:
-                try:
-                    text = self._queue.get(timeout=0.5)
-                    if text is None:
-                        break
-                    self._speaking = True
+        import sys
+        import os
+        is_linux = sys.platform.startswith("linux")
+        engine = None
+        
+        if sys.platform == "win32":
+            try:
+                import pythoncom
+                pythoncom.CoInitialize()
+            except ImportError:
+                pass
+                
+        if not is_linux:
+            try:
+                import pyttsx3
+                engine = pyttsx3.init()
+                engine.setProperty("rate",   self._rate)
+                engine.setProperty("volume", self._volume)
+                voices = engine.getProperty("voices")
+                if voices:
+                    eng = [v for v in voices if "english" in v.name.lower() or "en" in v.id.lower()]
+                    if eng:
+                        engine.setProperty("voice", eng[0].id)
+                logger.info("pyttsx3 engine initialised.")
+            except ImportError:
+                logger.error("pyttsx3 not installed.")
+            except Exception as e:
+                logger.error(f"TTS engine error: {e}")
+
+        while self._running:
+            try:
+                text = self._queue.get(timeout=0.5)
+                if text is None:
+                    break
+                self._speaking = True
+                
+                if is_linux:
+                    safe = text.replace("'", "")
+                    os.system(f"espeak -s {self._rate} '{safe}' >/dev/null 2>&1")
+                elif engine:
                     engine.say(text)
                     engine.runAndWait()
-                    self._speaking = False
-                    time.sleep(1.5)   # pause after speaking so mic doesn't catch output
-                except queue.Empty:
-                    self._speaking = False
-                    continue
-                except Exception as e:
-                    self._speaking = False
-                    logger.warning(f"TTS error: {e}")
-        except Exception as e:
-            logger.error(f"TTS engine failed: {e}")
+                    
+                self._speaking = False
+                time.sleep(1.5)
+            except queue.Empty:
+                self._speaking = False
+                continue
+            except Exception as e:
+                self._speaking = False
+                logger.warning(f"TTS error: {e}")
 
 
 class WhisperSTT:
